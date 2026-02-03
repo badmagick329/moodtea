@@ -31,29 +31,26 @@ func (m Model) View() tea.View {
 	if m.err != nil {
 		return tea.NewView("Error: " + m.err.Error() + "\n\n(q to quit)\n")
 	}
-	if len(m.months) == 0 || len(m.currentDays()) == 0 {
+	vm := m.buildViewModel()
+	if !vm.HasData {
 		return tea.NewView("No data.\n\n(q to quit)\n")
 	}
 
 	var b strings.Builder
-	days := m.currentDays()
-	start, daysInMonth, startWeekday := monthBounds(days)
-	dayMap := buildDayMap(days)
-	selected := days[m.cursor]
-	monthLabel := start.Format("January 2006")
 
 	b.WriteString("MoodTea — ")
-	b.WriteString(monthLabel)
+	b.WriteString(vm.MonthLabel)
 	b.WriteString("\n")
-	b.WriteString("←/→ (h/l), ↑/↓ (k/j) to move day, [/] or PgUp/PgDn to move month, q to quit\n\n")
+	b.WriteString(helpLine)
+	b.WriteString("\n\n")
 
-	b.WriteString(renderCalendar("Mood", daysInMonth, startWeekday, dayMap, selected.Date.Day(), func(d dayInfo) int {
+	b.WriteString(renderCalendar("Mood", vm.DaysInMonth, vm.StartWeekday, vm.DayMap, vm.Selected.Date.Day(), func(d dayInfo) int {
 		return d.mood
 	}, moodPalette))
 	b.WriteString("\n")
 	b.WriteString(renderLegend("Mood scale:", moodPalette))
 	b.WriteString("\n\n")
-	b.WriteString(renderCalendar("Energy", daysInMonth, startWeekday, dayMap, selected.Date.Day(), func(d dayInfo) int {
+	b.WriteString(renderCalendar("Energy", vm.DaysInMonth, vm.StartWeekday, vm.DayMap, vm.Selected.Date.Day(), func(d dayInfo) int {
 		return d.energy
 	}, energyPalette))
 	b.WriteString("\n")
@@ -61,12 +58,12 @@ func (m Model) View() tea.View {
 	b.WriteString("\n")
 
 	b.WriteString("Selected: ")
-	b.WriteString(selected.Date.Format("2006-01-02"))
+	b.WriteString(vm.Selected.Date.Format("2006-01-02"))
 	b.WriteString("  mood ")
-	b.WriteString(bar(selected.Mood))
-	b.WriteString(fmt.Sprintf(" (%d)  energy ", selected.Mood))
-	b.WriteString(bar(selected.Energy))
-	b.WriteString(fmt.Sprintf(" (%d)\n", selected.Energy))
+	b.WriteString(bar(vm.Selected.Mood))
+	b.WriteString(fmt.Sprintf(" (%d)  energy ", vm.Selected.Mood))
+	b.WriteString(bar(vm.Selected.Energy))
+	b.WriteString(fmt.Sprintf(" (%d)\n", vm.Selected.Energy))
 
 	return tea.NewView(b.String())
 }

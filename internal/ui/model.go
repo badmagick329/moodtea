@@ -7,21 +7,38 @@ import (
 )
 
 type Model struct {
-	months     []data.Month
-	monthIndex int
-	cursor     int
-	err        error
+	months []data.Month
+	state  State
+	err    error
 }
+
+const (
+	keyQuit       = "ctrl+c"
+	keyQuitAlt    = "q"
+	keyQuitAlt2   = "esc"
+	keyNextMonth  = "]"
+	keyPrevMonth  = "["
+	keyNextMonth2 = "pgdown"
+	keyPrevMonth2 = "pgup"
+	keyRight      = "right"
+	keyRightAlt   = "l"
+	keyLeft       = "left"
+	keyLeftAlt    = "h"
+	keyDown       = "down"
+	keyDownAlt    = "j"
+	keyUp         = "up"
+	keyUpAlt      = "k"
+)
 
 func NewModel(months []data.Month, startKey string, err error) Model {
 	m := Model{months: months, err: err}
 	if len(months) == 0 {
 		return m
 	}
-	m.monthIndex = 0
+	m.state.MonthIndex = 0
 	for i, month := range months {
 		if month.Key == startKey {
-			m.monthIndex = i
+			m.state.MonthIndex = i
 			break
 		}
 	}
@@ -34,31 +51,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q", "esc":
+		case keyQuit, keyQuitAlt, keyQuitAlt2:
 			return m, tea.Quit
-		case "]", "pgdown":
+		case keyNextMonth, keyNextMonth2:
 			m.moveMonth(1)
-		case "[", "pgup":
+		case keyPrevMonth, keyPrevMonth2:
 			m.moveMonth(-1)
-		case "right", "l":
-			if m.cursor < len(m.currentDays())-1 {
-				m.cursor++
+		case keyRight, keyRightAlt:
+			if m.state.Cursor < len(m.currentDays())-1 {
+				m.state.Cursor++
 			}
-		case "left", "h":
-			if m.cursor > 0 {
-				m.cursor--
+		case keyLeft, keyLeftAlt:
+			if m.state.Cursor > 0 {
+				m.state.Cursor--
 			}
-		case "down", "j":
-			if m.cursor+7 < len(m.currentDays()) {
-				m.cursor += 7
+		case keyDown, keyDownAlt:
+			if m.state.Cursor+7 < len(m.currentDays()) {
+				m.state.Cursor += 7
 			} else if len(m.currentDays()) > 0 {
-				m.cursor = len(m.currentDays()) - 1
+				m.state.Cursor = len(m.currentDays()) - 1
 			}
-		case "up", "k":
-			if m.cursor-7 >= 0 {
-				m.cursor -= 7
+		case keyUp, keyUpAlt:
+			if m.state.Cursor-7 >= 0 {
+				m.state.Cursor -= 7
 			} else {
-				m.cursor = 0
+				m.state.Cursor = 0
 			}
 		}
 	}
@@ -69,7 +86,7 @@ func (m *Model) currentDays() []data.Day {
 	if len(m.months) == 0 {
 		return nil
 	}
-	return m.months[m.monthIndex].Days
+	return m.months[m.state.MonthIndex].Days
 }
 
 func (m *Model) moveMonth(delta int) {
@@ -82,28 +99,23 @@ func (m *Model) moveMonth(delta int) {
 
 	oldDays := m.currentDays()
 	selectedDay := 1
-	if len(oldDays) > 0 && m.cursor >= 0 && m.cursor < len(oldDays) {
-		selectedDay = oldDays[m.cursor].Date.Day()
+	if len(oldDays) > 0 && m.state.Cursor >= 0 && m.state.Cursor < len(oldDays) {
+		selectedDay = oldDays[m.state.Cursor].Date.Day()
 	}
 
-	next := m.monthIndex + delta
-	if next < 0 {
-		next = 0
-	} else if next >= len(m.months) {
-		next = len(m.months) - 1
-	}
-	if next == m.monthIndex {
+	next := clamp(m.state.MonthIndex+delta, 0, len(m.months)-1)
+	if next == m.state.MonthIndex {
 		return
 	}
-	m.monthIndex = next
+	m.state.MonthIndex = next
 
 	newDays := m.currentDays()
 	if len(newDays) == 0 {
-		m.cursor = 0
+		m.state.Cursor = 0
 		return
 	}
 
-	m.cursor = findDayIndex(newDays, selectedDay)
+	m.state.Cursor = findDayIndex(newDays, selectedDay)
 }
 
 func findDayIndex(days []data.Day, day int) int {
@@ -113,4 +125,14 @@ func findDayIndex(days []data.Day, day int) int {
 		}
 	}
 	return len(days) - 1
+}
+
+func clamp(v int, min int, max int) int {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
 }
