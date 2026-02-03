@@ -1,3 +1,4 @@
 {
-  "notes_path": "C:/path/to/your/notes/root"
+  "notes_path": "C:/path/to/your/notes/root",
+  "data_path": "C:/code/golang/moodtea/data"
 }

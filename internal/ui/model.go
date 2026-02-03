@@ -42,6 +42,9 @@ func NewModel(months []data.Month, startKey string, err error) Model {
 			break
 		}
 	}
+	if months[m.state.MonthIndex].Key != startKey {
+		m.state.MonthIndex = lastMonthIndexBefore(months, startKey)
+	}
 	return m
 }
 
@@ -135,4 +138,17 @@ func clamp(v int, min int, max int) int {
 		return max
 	}
 	return v
+}
+
+func lastMonthIndexBefore(months []data.Month, key string) int {
+	if len(months) == 0 {
+		return 0
+	}
+	idx := 0
+	for i, month := range months {
+		if month.Key <= key {
+			idx = i
+		}
+	}
+	return idx
 }

@@ -4,24 +4,32 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"moodtea/internal/config"
 	"moodtea/internal/data"
 	"moodtea/internal/ui"
 )
 
 func main() {
-	var path string
-	flag.StringVar(&path, "file", "data/2026-01.json", "path to JSON data file")
+	var configPath string
+	flag.StringVar(&configPath, "config", "config.json", "path to config.json")
 	flag.Parse()
 
-	dir := filepath.Dir(path)
-	startKey := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "config error:", err)
+		os.Exit(1)
+	}
+	if cfg.DataPath == "" {
+		fmt.Fprintln(os.Stderr, "config error: data_path is required")
+		os.Exit(1)
+	}
 
-	months, err := data.LoadAll(dir)
+	months, err := data.LoadAll(cfg.DataPath)
+	startKey := time.Now().Format("2006-01")
 	m := ui.NewModel(months, startKey, err)
 
 	p := tea.NewProgram(m)

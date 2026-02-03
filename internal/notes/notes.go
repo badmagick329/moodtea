@@ -1,7 +1,6 @@
 package notes
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,25 +12,6 @@ import (
 
 	"moodtea/internal/data"
 )
-
-type Config struct {
-	NotesPath string `json:"notes_path"`
-}
-
-func LoadConfig(path string) (Config, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return Config{}, err
-	}
-	var cfg Config
-	if err := json.Unmarshal(b, &cfg); err != nil {
-		return Config{}, err
-	}
-	if strings.TrimSpace(cfg.NotesPath) == "" {
-		return Config{}, fmt.Errorf("notes_path is required in %s", path)
-	}
-	return cfg, nil
-}
 
 var (
 	yearRe    = regexp.MustCompile(`^\d{4}$`)
