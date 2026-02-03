@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -13,11 +15,14 @@ import (
 
 func main() {
 	var path string
-	flag.StringVar(&path, "file", "data/january_2026.json", "path to JSON data file")
+	flag.StringVar(&path, "file", "data/2026-01.json", "path to JSON data file")
 	flag.Parse()
 
-	days, err := data.Load(path)
-	m := ui.NewModel(days, err)
+	dir := filepath.Dir(path)
+	startKey := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+
+	months, err := data.LoadAll(dir)
+	m := ui.NewModel(months, startKey, err)
 
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {

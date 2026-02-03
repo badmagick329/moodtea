@@ -31,19 +31,21 @@ func (m Model) View() tea.View {
 	if m.err != nil {
 		return tea.NewView("Error: " + m.err.Error() + "\n\n(q to quit)\n")
 	}
-	if len(m.days) == 0 {
+	if len(m.months) == 0 || len(m.currentDays()) == 0 {
 		return tea.NewView("No data.\n\n(q to quit)\n")
 	}
 
 	var b strings.Builder
-	start, daysInMonth, startWeekday := monthBounds(m.days)
-	dayMap := buildDayMap(m.days)
-	selected := m.days[m.cursor]
+	days := m.currentDays()
+	start, daysInMonth, startWeekday := monthBounds(days)
+	dayMap := buildDayMap(days)
+	selected := days[m.cursor]
+	monthLabel := start.Format("January 2006")
 
 	b.WriteString("MoodTea — ")
-	b.WriteString(start.Format("January 2006"))
+	b.WriteString(monthLabel)
 	b.WriteString("\n")
-	b.WriteString("←/→ (h/l), ↑/↓ (k/j) to move, q to quit\n\n")
+	b.WriteString("←/→ (h/l), ↑/↓ (k/j) to move day, [/] or PgUp/PgDn to move month, q to quit\n\n")
 
 	b.WriteString(renderCalendar("Mood", daysInMonth, startWeekday, dayMap, selected.Date.Day(), func(d dayInfo) int {
 		return d.mood
