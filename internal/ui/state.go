@@ -14,4 +14,5 @@ type State struct {
 	GotoBuffer string
 	GotoError  string
 	Width      int
+	Height     int
 }

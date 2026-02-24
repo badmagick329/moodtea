@@ -6,6 +6,7 @@ type keyMap struct {
 	MoveDay   key.Binding
 	MoveWeek  key.Binding
 	MoveMonth key.Binding
+	Scroll    key.Binding
 	Today     key.Binding
 	GotoMonth key.Binding
 	Quit      key.Binding
@@ -14,13 +15,13 @@ type keyMap struct {
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.MoveDay, k.MoveWeek, k.MoveMonth, k.Today, k.GotoMonth, k.Quit}
+	return []key.Binding{k.MoveDay, k.MoveWeek, k.MoveMonth, k.Scroll, k.Today, k.GotoMonth, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.MoveDay, k.MoveWeek, k.MoveMonth},
-		{k.Today, k.GotoMonth, k.Quit},
+		{k.Scroll, k.Today, k.GotoMonth, k.Quit},
 	}
 }
 
@@ -56,6 +57,10 @@ var keys = keyMap{
 	MoveMonth: key.NewBinding(
 		key.WithKeys("[", "]", "pgup", "pgdown"),
 		key.WithHelp("[/] PgUp/PgDn", "move month"),
+	),
+	Scroll: key.NewBinding(
+		key.WithKeys("J", "K"),
+		key.WithHelp("J/K", "scroll"),
 	),
 	Today: key.NewBinding(
 		key.WithKeys("t"),

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 
 	"moodtea/internal/data"
@@ -14,6 +15,7 @@ type Model struct {
 	months    []data.Month
 	state     State
 	helpModel help.Model
+	viewport  viewport.Model
 	err       error
 }
 
@@ -38,13 +40,23 @@ const (
 	keyGoto       = "g"
 	keyEnter      = "enter"
 	keyBackspace  = "backspace"
+	keyScrollDown = "J"
+	keyScrollUp   = "K"
 )
 
 var monthKeyRe = regexp.MustCompile(`^\d{4}-(0[1-9]|1[0-2])$`)
 
 func NewModel(months []data.Month, startKey string, err error) Model {
-	m := Model{months: months, err: err, helpModel: help.New()}
+	vp := viewport.New(viewport.WithWidth(100), viewport.WithHeight(40))
+	vp.SoftWrap = true
+	vp.FillHeight = false
+	vp.MouseWheelEnabled = true
+	vp.MouseWheelDelta = 3
+	vp.KeyMap = viewport.KeyMap{}
+
+	m := Model{months: months, err: err, helpModel: help.New(), viewport: vp}
 	m.state.Width = 100
+	m.state.Height = 40
 	if len(months) == 0 {
 		return m
 	}
@@ -68,6 +80,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.state.Width = msg.Width
+		m.state.Height = msg.Height
+		m.viewport.SetWidth(msg.Width)
+		m.viewport.SetHeight(msg.Height)
 	case tea.KeyMsg:
 		if m.state.Mode == InputModeGotoMonth {
 			switch msg.String() {
@@ -104,7 +119,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state.Mode = InputModeGotoMonth
 			m.state.GotoBuffer = ""
 			m.state.GotoError = ""
+		case keyScrollDown:
+			m.viewport.ScrollDown(3)
+		case keyScrollUp:
+			m.viewport.ScrollUp(3)
 		}
+
+		var cmd tea.Cmd
+		m.viewport, cmd = m.viewport.Update(msg)
+		return m, cmd
+	default:
+		var cmd tea.Cmd
+		m.viewport, cmd = m.viewport.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }

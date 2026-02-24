@@ -146,6 +146,23 @@ func renderFooterCard(vm ViewModel) string {
 	return footerCardStyle.Render(b.String())
 }
 
+func renderCalendarPanels(vm ViewModel, width int) string {
+	mood := renderCalendar("Mood", vm.DaysInMonth, vm.StartWeekday, vm.DayMap, vm.SelectedDate.Day(), func(d dayInfo) int {
+		return d.mood
+	}, moodPalette) + "\n" + renderLegend("Mood scale:", moodPalette)
+
+	energy := renderCalendar("Energy", vm.DaysInMonth, vm.StartWeekday, vm.DayMap, vm.SelectedDate.Day(), func(d dayInfo) int {
+		return d.energy
+	}, energyPalette) + "\n" + renderLegend("Energy scale:", energyPalette)
+
+	const sideBySideMinWidth = 96
+	if width >= sideBySideMinWidth {
+		return lipgloss.JoinHorizontal(lipgloss.Top, mood, "    ", energy)
+	}
+
+	return mood + "\n\n" + energy
+}
+
 func (m Model) View() tea.View {
 	if m.err != nil {
 		return tea.NewView("Error: " + m.err.Error() + "\n\n(q to quit)\n")
@@ -162,22 +179,13 @@ func (m Model) View() tea.View {
 	b.WriteString(renderDivider(m.state.Width))
 	b.WriteString("\n\n\n")
 
-	b.WriteString(renderCalendar("Mood", vm.DaysInMonth, vm.StartWeekday, vm.DayMap, vm.SelectedDate.Day(), func(d dayInfo) int {
-		return d.mood
-	}, moodPalette))
-	b.WriteString("\n")
-	b.WriteString(renderLegend("Mood scale:", moodPalette))
-	b.WriteString("\n\n")
-	b.WriteString(renderCalendar("Energy", vm.DaysInMonth, vm.StartWeekday, vm.DayMap, vm.SelectedDate.Day(), func(d dayInfo) int {
-		return d.energy
-	}, energyPalette))
-	b.WriteString("\n")
-	b.WriteString(renderLegend("Energy scale:", energyPalette))
+	b.WriteString(renderCalendarPanels(vm, m.state.Width))
 	b.WriteString("\n")
 	b.WriteString(renderDivider(m.state.Width))
 	b.WriteString("\n\n")
 	b.WriteString(renderFooterCard(vm))
 	b.WriteString("\n")
 
-	return tea.NewView(b.String())
+	m.viewport.SetContent(b.String())
+	return tea.NewView(m.viewport.View())
 }
