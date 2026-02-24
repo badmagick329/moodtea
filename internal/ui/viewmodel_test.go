@@ -62,6 +62,34 @@ func TestMonthAverages(t *testing.T) {
 	})
 }
 
+func TestMonthTrendStats(t *testing.T) {
+	days := []data.Day{
+		{Date: mustDate(t, "2026-01-01"), Mood: 1, Energy: 5},
+		{Date: mustDate(t, "2026-01-02"), Mood: 2, Energy: 4},
+		{Date: mustDate(t, "2026-01-03"), Mood: 3, Energy: 3},
+		{Date: mustDate(t, "2026-01-04"), Mood: 4, Energy: 2},
+		{Date: mustDate(t, "2026-01-05"), Mood: 5, Energy: 1},
+		{Date: mustDate(t, "2026-01-06"), Mood: 5, Energy: 1},
+		{Date: mustDate(t, "2026-01-07"), Mood: 4, Energy: 2},
+		{Date: mustDate(t, "2026-01-08"), Mood: 3, Energy: 3},
+	}
+
+	medianMood, medianEnergy := monthMedians(days)
+	if medianMood != 3.5 || medianEnergy != 2.5 {
+		t.Fatalf("median mood/energy = %.1f/%.1f, want 3.5/2.5", medianMood, medianEnergy)
+	}
+
+	minMood, maxMood, minEnergy, maxEnergy := monthMinMax(days)
+	if minMood != 1 || maxMood != 5 || minEnergy != 1 || maxEnergy != 5 {
+		t.Fatalf("min/max mismatch: mood %d-%d energy %d-%d", minMood, maxMood, minEnergy, maxEnergy)
+	}
+
+	r7Mood, r7Energy := monthRolling7(days)
+	if r7Mood != 26.0/7.0 || r7Energy != 16.0/7.0 {
+		t.Fatalf("rolling7 mood/energy = %v/%v, want %v/%v", r7Mood, r7Energy, 26.0/7.0, 16.0/7.0)
+	}
+}
+
 func mustDate(t *testing.T, s string) time.Time {
 	t.Helper()
 	d, err := time.Parse("2006-01-02", s)

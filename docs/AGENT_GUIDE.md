@@ -21,15 +21,16 @@ This guide is the baseline context a future agent should read before changing co
 ## Runtime Flow
 ### Import flow (`cmd/importer`)
 1. Load `config.json` (or `-config` override).
-2. Require `notes_path`.
+2. Resolve notes root with precedence `-notes-path` flag, then `notes_path`.
 3. Scan notes directory with structure `ROOT/YYYY/MM/DD.txt`.
 4. Parse each day file for `@mood` and `@energy` tags.
 5. Keep only valid scores in range 1-5.
 6. Write JSON files to output dir (`-out`, default `data`) as `YYYY-MM.json`.
+7. Print scan diagnostics summary; `-verbose` prints per-file skips grouped by reason.
 
 ### Viewer flow (`cmd/moodtea`)
 1. Load `config.json` (or `-config` override).
-2. Require `data_path`.
+2. Resolve data directory with precedence `-data-path` flag, then `data_path`.
 3. Load all month files in `data_path` that match `^\d{4}-\d{2}\.json$`.
 4. Pick initial month key based on current date (`time.Now().Format("2006-01")`), fallback to closest previous available month.
 5. Start Bubble Tea program and render two calendars (Mood and Energy), legends, monthly averages, and selected-day details.
@@ -41,9 +42,9 @@ This guide is the baseline context a future agent should read before changing co
 - `data_path` (string): used by viewer.
 
 Validation behavior:
-- If both empty, config load fails.
-- Importer separately enforces `notes_path` non-empty.
-- Viewer separately enforces `data_path` non-empty.
+- Config load trims values and parses JSON.
+- Importer enforces resolved notes path non-empty.
+- Viewer enforces resolved data path non-empty.
 
 Example (`config.example.json`):
 ```json
@@ -82,12 +83,15 @@ Key files:
 
 State model:
 - `MonthIndex`: active month in loaded months slice.
-- `Cursor`: selected day index within the month's existing entries.
+- `CursorDay`: selected calendar day within active month (`1..daysInMonth`).
+- `Mode`: normal navigation vs go-to-month input mode.
 
 Navigation:
 - Quit: `q`, `esc`, `ctrl+c`
 - Month: `[`/`]` or `pgup`/`pgdown`
-- Day: arrows or `h/j/k/l`
+- Day: arrows or `h/j/k/l` (calendar-day movement; clamps within month)
+- Today: `t` (jump to today key/day with closest-previous month fallback)
+- Month jump: `g` (input `YYYY-MM`, Enter to jump, Esc to cancel)
 
 Rendering details:
 - Two 6x7 calendars are always rendered: Mood and Energy.
@@ -101,6 +105,13 @@ Monthly averages (implemented):
 - `avgEnergy = sum(energy) / recordedDays`
 - Displayed with one decimal under month header:
   - `Avg mood X.X | Avg energy Y.Y (N days)`
+
+Additional trend stats (implemented):
+- Median mood/energy from recorded entries.
+- Min/max mood and energy from recorded entries.
+- Rolling 7-entry average using latest up to 7 recorded entries in month.
+- Display line:
+  - `Median M/E: X.X / Y.Y | Min-Max M: A-B E: C-D | 7d Avg M/E: P.P / Q.Q`
 
 ## Importer Parsing Rules
 Notes scanner expects:
@@ -116,6 +127,9 @@ Behavior:
 - If either tag missing, the note is skipped.
 - If parse fails or values out of 1-5, the note is skipped.
 - Invalid calendar dates are skipped (e.g., 2026-02-31).
+- Importer records skip reasons and counts:
+  - `invalid_year_dir`, `invalid_month_dir`, `invalid_day_filename`, `invalid_date`,
+    `read_error`, `missing_tag`, `parse_error`, `out_of_range`.
 
 ## Build, Run, Test
 Prereq:
@@ -125,17 +139,23 @@ Common commands:
 ```powershell
 # Run importer
 go run ./cmd/importer -config config.json -out data
+go run ./cmd/importer -config config.json -notes-path C:/path/to/notes -verbose
 
 # Run viewer
 go run ./cmd/moodtea -config config.json
+go run ./cmd/moodtea -config config.json -data-path C:/code/golang/moodtea/data
 
 # Run all tests
 go test ./...
 ```
 
 Current tests:
+- `internal/notes/notes_test.go`: importer scan diagnostics, skip reasons, and valid import handling.
+- `internal/data/data_test.go`: strict date/range/empty validations.
+- `internal/data/months_test.go`: strict month filename filtering and key sort behavior.
+- `internal/ui/model_test.go`: calendar-day cursor behavior, no-entry rendering, `t`/`g` shortcuts.
 - `internal/ui/viewmodel_test.go`: monthly average calculations.
-- `internal/ui/view_test.go`: average line rendered + updates on month switch.
+- `internal/ui/view_test.go`: average/trend lines rendered + updates on month switch.
 
 ## Dependencies
 Core runtime dependencies are Charm ecosystem packages:
@@ -147,7 +167,7 @@ Most dependencies in `go.mod` are currently marked indirect.
 ## Known Constraints and Gotchas
 - The viewer only loads month files matching strict `YYYY-MM.json` naming.
 - Date parsing in data loader is strict and fail-fast per file.
-- Importer skips invalid or incomplete note files silently (no per-file warning output).
+- Importer skip behavior is non-fatal at file level and surfaced through diagnostics output.
 - UI output includes ANSI styling; tests should assert with substring matching rather than full snapshot equality.
 - `.gitignore` excludes `data/*`, `config.json`, and `*.exe`.
 
@@ -164,3 +184,4 @@ Most dependencies in `go.mod` are currently marked indirect.
 4. Implement minimal changes in one subsystem at a time.
 5. Add/adjust tests in `internal/ui` (or new package tests as needed).
 6. Run `go test ./...` before finishing.
+7. Run `golangci-lint run` and `go build ./cmd/importer ./cmd/moodtea` for quality gates.

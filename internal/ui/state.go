@@ -1,6 +1,16 @@
 package ui
 
+type InputMode int
+
+const (
+	InputModeNormal InputMode = iota
+	InputModeGotoMonth
+)
+
 type State struct {
 	MonthIndex int
-	Cursor     int
+	CursorDay  int
+	Mode       InputMode
+	GotoBuffer string
+	GotoError  string
 }

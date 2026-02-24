@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 )
@@ -23,8 +22,5 @@ func Load(path string) (Config, error) {
 	}
 	cfg.NotesPath = strings.TrimSpace(cfg.NotesPath)
 	cfg.DataPath = strings.TrimSpace(cfg.DataPath)
-	if cfg.NotesPath == "" && cfg.DataPath == "" {
-		return Config{}, fmt.Errorf("config has no notes_path or data_path in %s", path)
-	}
 	return cfg, nil
 }
