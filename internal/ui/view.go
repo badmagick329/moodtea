@@ -41,6 +41,7 @@ func (m Model) View() tea.View {
 	b.WriteString("MoodTea — ")
 	b.WriteString(vm.MonthLabel)
 	b.WriteString("\n")
+	b.WriteString(fmt.Sprintf("Avg mood %.1f | Avg energy %.1f (%d days)\n", vm.AvgMood, vm.AvgEnergy, vm.RecordedDays))
 	b.WriteString(helpLine)
 	b.WriteString("\n\n")
 
