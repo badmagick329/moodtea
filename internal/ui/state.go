@@ -13,4 +13,5 @@ type State struct {
 	Mode       InputMode
 	GotoBuffer string
 	GotoError  string
+	Width      int
 }

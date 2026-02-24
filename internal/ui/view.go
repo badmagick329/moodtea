@@ -10,7 +10,9 @@ import (
 
 func bar(n int) string {
 	// n is 1..5
-	return strings.Repeat("█", n) + strings.Repeat("░", 5-n)
+	filled := barFilledStyle.Render(strings.Repeat("█", n))
+	empty := barEmptyStyle.Render(strings.Repeat("░", 5-n))
+	return filled + empty
 }
 
 func renderLegend(title string, palette []string) string {
@@ -27,6 +29,123 @@ func renderLegend(title string, palette []string) string {
 	return b.String()
 }
 
+func renderDivider(width int) string {
+	if width < 20 {
+		width = 20
+	}
+	return dividerStyle.Render(strings.Repeat("─", width))
+}
+
+func renderTitleRow(title string, right string, width int) string {
+	leftWidth := lipgloss.Width(title)
+	rightWidth := lipgloss.Width(right)
+	if width <= 0 {
+		width = 60
+	}
+	gap := width - leftWidth - rightWidth
+	if gap < 2 {
+		return title + "\n" + subtleTextStyle.Render(right)
+	}
+	return title + strings.Repeat(" ", gap) + subtleTextStyle.Render(right)
+}
+
+func wrapChips(chips []string, width int) string {
+	if width <= 0 {
+		width = 60
+	}
+	var lines []string
+	var current string
+	currentWidth := 0
+	for _, chip := range chips {
+		w := lipgloss.Width(chip)
+		if currentWidth > 0 && currentWidth+1+w > width {
+			lines = append(lines, current)
+			current = chip
+			currentWidth = w
+			continue
+		}
+		if currentWidth == 0 {
+			current = chip
+			currentWidth = w
+			continue
+		}
+		current += " " + chip
+		currentWidth += 1 + w
+	}
+	if current != "" {
+		lines = append(lines, current)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func renderStatChips(vm ViewModel, width int) string {
+	chips := []string{
+		chipStyle.Render(fmt.Sprintf("Avg M %.1f", vm.AvgMood)),
+		chipStyle.Render(fmt.Sprintf("Avg E %.1f", vm.AvgEnergy)),
+		chipStyle.Render(fmt.Sprintf("Med M %.1f", vm.MedianMood)),
+		chipStyle.Render(fmt.Sprintf("Med E %.1f", vm.MedianEnergy)),
+		chipStyle.Render(fmt.Sprintf("M %d-%d", vm.MinMood, vm.MaxMood)),
+		chipStyle.Render(fmt.Sprintf("E %d-%d", vm.MinEnergy, vm.MaxEnergy)),
+		chipStyle.Render(fmt.Sprintf("7d M %.1f", vm.Rolling7Mood)),
+		chipStyle.Render(fmt.Sprintf("7d E %.1f", vm.Rolling7Energy)),
+	}
+	return wrapChips(chips, width)
+}
+
+func (m Model) renderHelp() string {
+	if m.state.Mode == InputModeGotoMonth {
+		return subtleTextStyle.Render(m.helpModel.View(gotoKeyMap{base: keys}))
+	}
+	return subtleTextStyle.Render(m.helpModel.View(keys))
+}
+
+func (m Model) renderHeaderCard(vm ViewModel) string {
+	cardInnerWidth := m.state.Width - 4
+	if cardInnerWidth < 50 {
+		cardInnerWidth = 50
+	}
+
+	var b strings.Builder
+	title := titleStyle.Render("MoodTea — " + vm.MonthLabel)
+	recorded := fmt.Sprintf("%d days recorded", vm.RecordedDays)
+	b.WriteString(renderTitleRow(title, recorded, cardInnerWidth))
+	b.WriteString("\n")
+	b.WriteString(renderStatChips(vm, cardInnerWidth))
+	b.WriteString("\n")
+
+	if m.state.Mode == InputModeGotoMonth {
+		b.WriteString(subtleTextStyle.Render("Go to month (YYYY-MM): "))
+		b.WriteString(m.state.GotoBuffer)
+		if m.state.GotoError != "" {
+			b.WriteString("  ")
+			b.WriteString(warnTextStyle.Render(m.state.GotoError))
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString(m.renderHelp())
+	return headerCardStyle.Render(b.String())
+}
+
+func renderFooterCard(vm ViewModel) string {
+	var b strings.Builder
+	b.WriteString(subtleTextStyle.Render("Selected "))
+	b.WriteString(vm.SelectedDate.Format("2006-01-02"))
+	b.WriteString("\n")
+
+	if vm.SelectedHasData {
+		b.WriteString("Mood ")
+		b.WriteString(bar(vm.Selected.Mood))
+		b.WriteString(fmt.Sprintf(" (%d)  ", vm.Selected.Mood))
+		b.WriteString("Energy ")
+		b.WriteString(bar(vm.Selected.Energy))
+		b.WriteString(fmt.Sprintf(" (%d)", vm.Selected.Energy))
+	} else {
+		b.WriteString(subtleTextStyle.Render("No entry for selected day"))
+	}
+	return footerCardStyle.Render(b.String())
+}
+
 func (m Model) View() tea.View {
 	if m.err != nil {
 		return tea.NewView("Error: " + m.err.Error() + "\n\n(q to quit)\n")
@@ -38,27 +157,10 @@ func (m Model) View() tea.View {
 
 	var b strings.Builder
 
-	b.WriteString("MoodTea — ")
-	b.WriteString(vm.MonthLabel)
+	b.WriteString(m.renderHeaderCard(vm))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("Avg mood %.1f | Avg energy %.1f (%d days)\n", vm.AvgMood, vm.AvgEnergy, vm.RecordedDays))
-	b.WriteString(fmt.Sprintf(
-		"Median M/E: %.1f / %.1f | Min-Max M: %d-%d E: %d-%d | 7d Avg M/E: %.1f / %.1f\n",
-		vm.MedianMood,
-		vm.MedianEnergy,
-		vm.MinMood,
-		vm.MaxMood,
-		vm.MinEnergy,
-		vm.MaxEnergy,
-		vm.Rolling7Mood,
-		vm.Rolling7Energy,
-	))
-	if m.state.Mode == InputModeGotoMonth {
-		b.WriteString(gotoHelpLine)
-	} else {
-		b.WriteString(helpLine)
-	}
-	b.WriteString("\n\n")
+	b.WriteString(renderDivider(m.state.Width))
+	b.WriteString("\n\n\n")
 
 	b.WriteString(renderCalendar("Mood", vm.DaysInMonth, vm.StartWeekday, vm.DayMap, vm.SelectedDate.Day(), func(d dayInfo) int {
 		return d.mood
@@ -72,30 +174,10 @@ func (m Model) View() tea.View {
 	b.WriteString("\n")
 	b.WriteString(renderLegend("Energy scale:", energyPalette))
 	b.WriteString("\n")
-
-	if m.state.Mode == InputModeGotoMonth {
-		b.WriteString("Go to month (YYYY-MM): ")
-		b.WriteString(m.state.GotoBuffer)
-		if m.state.GotoError != "" {
-			b.WriteString("  ")
-			b.WriteString(m.state.GotoError)
-		}
-		b.WriteString("\n")
-	}
-
-	if vm.SelectedHasData {
-		b.WriteString("Selected: ")
-		b.WriteString(vm.Selected.Date.Format("2006-01-02"))
-		b.WriteString("  mood ")
-		b.WriteString(bar(vm.Selected.Mood))
-		b.WriteString(fmt.Sprintf(" (%d)  energy ", vm.Selected.Mood))
-		b.WriteString(bar(vm.Selected.Energy))
-		b.WriteString(fmt.Sprintf(" (%d)\n", vm.Selected.Energy))
-	} else {
-		b.WriteString("Selected: ")
-		b.WriteString(vm.SelectedDate.Format("2006-01-02"))
-		b.WriteString("  No entry for selected day\n")
-	}
+	b.WriteString(renderDivider(m.state.Width))
+	b.WriteString("\n\n")
+	b.WriteString(renderFooterCard(vm))
+	b.WriteString("\n")
 
 	return tea.NewView(b.String())
 }

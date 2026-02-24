@@ -4,15 +4,17 @@ import (
 	"regexp"
 	"time"
 
+	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 
 	"moodtea/internal/data"
 )
 
 type Model struct {
-	months []data.Month
-	state  State
-	err    error
+	months    []data.Month
+	state     State
+	helpModel help.Model
+	err       error
 }
 
 const (
@@ -41,7 +43,8 @@ const (
 var monthKeyRe = regexp.MustCompile(`^\d{4}-(0[1-9]|1[0-2])$`)
 
 func NewModel(months []data.Month, startKey string, err error) Model {
-	m := Model{months: months, err: err}
+	m := Model{months: months, err: err, helpModel: help.New()}
+	m.state.Width = 100
 	if len(months) == 0 {
 		return m
 	}
@@ -63,6 +66,8 @@ func (m Model) Init() tea.Cmd { return nil }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.state.Width = msg.Width
 	case tea.KeyMsg:
 		if m.state.Mode == InputModeGotoMonth {
 			switch msg.String() {
