@@ -84,9 +84,42 @@ func TestMonthTrendStats(t *testing.T) {
 		t.Fatalf("min/max mismatch: mood %d-%d energy %d-%d", minMood, maxMood, minEnergy, maxEnergy)
 	}
 
-	r7Mood, r7Energy := monthRolling7(days)
+	months := []data.Month{
+		{Key: "2026-01", Days: days},
+	}
+	m := NewModel(months, "2026-01", nil)
+	m.state.CursorDay = 8
+
+	r7Mood, r7Energy := m.cursorRolling7(m.currentDateForCursor())
 	if r7Mood != 26.0/7.0 || r7Energy != 16.0/7.0 {
 		t.Fatalf("rolling7 mood/energy = %v/%v, want %v/%v", r7Mood, r7Energy, 26.0/7.0, 16.0/7.0)
+	}
+}
+
+func TestCursorRolling7IncludesPreviousMonthWindow(t *testing.T) {
+	months := []data.Month{
+		{
+			Key: "2026-01",
+			Days: []data.Day{
+				{Date: mustDate(t, "2026-01-29"), Mood: 2, Energy: 2},
+				{Date: mustDate(t, "2026-01-31"), Mood: 4, Energy: 3},
+			},
+		},
+		{
+			Key: "2026-02",
+			Days: []data.Day{
+				{Date: mustDate(t, "2026-02-01"), Mood: 5, Energy: 5},
+				{Date: mustDate(t, "2026-02-02"), Mood: 1, Energy: 4},
+			},
+		},
+	}
+
+	m := NewModel(months, "2026-02", nil)
+	m.state.CursorDay = 2
+	r7Mood, r7Energy := m.cursorRolling7(m.currentDateForCursor())
+
+	if r7Mood != 3.0 || r7Energy != 3.5 {
+		t.Fatalf("rolling7 mood/energy = %v/%v, want 3.0/3.5", r7Mood, r7Energy)
 	}
 }
 

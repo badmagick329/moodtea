@@ -41,7 +41,7 @@ func (m Model) buildViewModel() ViewModel {
 	avgMood, avgEnergy, recorded := monthAverages(days)
 	medianMood, medianEnergy := monthMedians(days)
 	minMood, maxMood, minEnergy, maxEnergy := monthMinMax(days)
-	rolling7Mood, rolling7Energy := monthRolling7(days)
+	rolling7Mood, rolling7Energy := m.cursorRolling7(selectedDate)
 
 	return ViewModel{
 		MonthLabel:      start.Format("January 2006"),
@@ -121,15 +121,22 @@ func monthMinMax(days []data.Day) (int, int, int, int) {
 	return minMood, maxMood, minEnergy, maxEnergy
 }
 
-func monthRolling7(days []data.Day) (float64, float64) {
-	if len(days) == 0 {
+func (m *Model) cursorRolling7(cursorDate time.Time) (float64, float64) {
+	if len(m.months) == 0 || cursorDate.IsZero() {
 		return 0, 0
 	}
-	start := len(days) - 7
-	if start < 0 {
-		start = 0
+
+	windowStart := cursorDate.AddDate(0, 0, -6)
+	window := make([]data.Day, 0, 7)
+	for _, month := range m.months {
+		for _, day := range month.Days {
+			if day.Date.Before(windowStart) || day.Date.After(cursorDate) {
+				continue
+			}
+			window = append(window, day)
+		}
 	}
-	window := days[start:]
+
 	avgMood, avgEnergy, _ := monthAverages(window)
 	return avgMood, avgEnergy
 }

@@ -34,7 +34,7 @@ func TestViewIncludesMonthlyAverages(t *testing.T) {
 	if !strings.Contains(out, "Avg M 4.0") || !strings.Contains(out, "Med E 3.0") {
 		t.Fatalf("view missing stat chips, got:\n%s", out)
 	}
-	if !strings.Contains(out, "M 3-5") || !strings.Contains(out, "7d E 3.0") {
+	if !strings.Contains(out, "M 3-5") || !strings.Contains(out, "7d E 4.0") {
 		t.Fatalf("view missing min/max or rolling chips, got:\n%s", out)
 	}
 	if !strings.Contains(out, "move day") || !strings.Contains(out, "scroll") {
